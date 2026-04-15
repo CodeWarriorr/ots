@@ -55,6 +55,7 @@ services:
   valkey:
     image: valkey/valkey:9.0.3-alpine
     restart: unless-stopped
+    user: valkey
     command:
       - valkey-server
       - --maxmemory
