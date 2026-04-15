@@ -70,7 +70,7 @@ The threat model is "random internet attacker with the public URL, trying to exh
 
 **Layer 1 — ots (`deploy/ots-customize.yaml`):**
 - `maxSecretSize: 262144` (256 KiB). Enough for passwords, SSH keys, API tokens, small files; blocks large-upload abuse. Upstream default is ~115 MiB.
-- `metricsAllowedSubnets: [172.16.0.0/12]` — restrict `/metrics` endpoint to the Docker bridge range only.
+- `metricsAllowedSubnets: []` — deny `/metrics` entirely. A subnet allowlist cannot be used here: cloudflared shares the compose bridge with the app, so its container IP falls inside any Docker-range CIDR and would pass the check, exposing `/metrics` to the public internet via the tunnel. Empty list makes the mux matcher return false for every request; the route falls through to asset delivery and ots returns 404. If a Prometheus scraper is ever added to this stack, allowlist its specific container `/32`, not a subnet.
 
 **Layer 2 — Valkey (`command` in compose):**
 - `--maxmemory 128mb --maxmemory-policy allkeys-lru` — hard memory cap, evict oldest if flooded.
@@ -239,7 +239,7 @@ Run after any deploy. Lives in `deploy/deploy.md`.
 5. `docker compose exec valkey valkey-cli info memory | grep maxmemory` — `maxmemory_human:128.00M`.
 6. Try pasting 300 KiB of text into the create form. `app` should reject with `secret_size` error.
 7. `docker compose logs app` — no startup errors; CSP / `X-Frame-Options: DENY` / `Referrer-Policy` headers present in response.
-8. Confirm `/metrics` is NOT reachable from the public internet: `curl -si https://ots.blocklab.dev/metrics`. Expected: blocked by `metricsAllowedSubnets` in `ots-customize.yaml`. The subnet allowlist is the defense-in-depth layer — `cloudflared` itself will forward any path that the tunnel rule matches, so the in-app subnet check is what actually blocks the request. If this test fails, check `ots-customize.yaml` first.
+8. Confirm `/metrics` is NOT reachable from the public internet: `curl -si https://ots.blocklab.dev/metrics`. Expected: HTTP 404 with no Prometheus body — the empty `metricsAllowedSubnets` list makes the mux matcher return false, so the route falls through to the asset-delivery handler. If this returns `200` with `# HELP go_gc_...`, the allowlist has drifted — set it back to `[]` in `ots-customize.yaml` and restart the `app` service.
 
 ## Open questions / future work
 
@@ -265,5 +265,6 @@ Run after any deploy. Lives in `deploy/deploy.md`.
 | Deploy layout | `deploy/` subdir in fork, on `master` | Clean boundary from upstream; upstream never touches `deploy/` |
 | Spec location | `deploy/specs/` | Same boundary principle |
 | Customize filename | `ots-customize.yaml` | Upstream `.gitignore` excludes `customize.yaml` at any path |
+| `/metrics` access | `metricsAllowedSubnets: []` (deny all) | Initial design used `[172.16.0.0/12]`; caught at first deploy that cloudflared sits on the same Docker bridge as the app, so its container IP (`172.23.0.4` in practice) always matched the allowlist and `/metrics` was reachable from the public internet. Allowlist a specific `/32` if a scraper is ever added. |
 | Token injection | `.env` on VPS, gitignored, 0600 | Matches newsletters pattern; zero secrets in git |
 | Data directory | `${DATA_DIR}` env var, absolute path outside repo | Keeps git clone clean; matches newsletters pattern |

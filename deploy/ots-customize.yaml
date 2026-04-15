@@ -7,9 +7,12 @@
 
 maxSecretSize: 262144
 
-# Only allow /metrics scraping from the Docker bridge subnet. This is
-# defense-in-depth — cloudflared forwards whatever the tunnel rule says,
-# so this in-app subnet check is the layer that actually blocks public
-# access to /metrics.
-metricsAllowedSubnets:
-  - 172.16.0.0/12
+# /metrics is denied for everyone. A subnet allowlist does NOT work here:
+# cloudflared shares the compose bridge network with the app, so its
+# container IP falls inside any 172.16.0.0/12-style CIDR and would pass
+# the check — which would expose /metrics to the public internet via the
+# tunnel. Empty list makes the mux matcher return false for every request;
+# the route falls through to the asset-delivery handler and ots returns
+# 404. If a Prometheus scraper is ever added to this stack, allowlist its
+# specific container /32, not a subnet.
+metricsAllowedSubnets: []

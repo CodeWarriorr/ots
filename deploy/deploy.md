@@ -59,7 +59,7 @@ After any deploy, run every step:
 5. `docker compose exec valkey valkey-cli info memory | grep maxmemory_human` — shows `maxmemory_human:128.00M`.
 6. `docker compose exec valkey valkey-cli info stats | grep evicted_keys` — shows a number (0 is fine; confirms LRU eviction is armed).
 7. Paste a 300 KiB blob into the create form. App rejects with a "secret size exceeds maximum" error. (If you can't type 300 KiB comfortably, skip — the API test in the plan's Task 5 covers this.)
-8. `curl -si https://ots.blocklab.dev/metrics | head -1` — does NOT return a 200 with prometheus metrics body. Blocked by `metricsAllowedSubnets`, not by cloudflared — so if a future tunnel rule change routes differently, check `ots-customize.yaml` first.
+8. `curl -si https://ots.blocklab.dev/metrics | head -1` — returns `HTTP/2 404`, not a 200 with a Prometheus body. `metricsAllowedSubnets: []` in `ots-customize.yaml` makes the mux matcher return false, so the route falls through to the asset-delivery 404 handler. If this returns `200` with `# HELP go_gc_...`, the allowlist has drifted — set it back to `[]` and restart the `app` service.
 
 ## Bump version
 
