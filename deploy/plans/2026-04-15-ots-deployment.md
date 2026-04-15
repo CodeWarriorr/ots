@@ -253,6 +253,10 @@ services:
   valkey:
     image: valkey/valkey:9.0.3-alpine
     restart: unless-stopped
+    # Run directly as valkey user. The image's entrypoint calls `setpriv`
+    # to drop from root, which needs CAP_SETUID/CAP_SETGID — both removed
+    # by `cap_drop: ALL`. Starting as valkey bypasses the privilege drop.
+    user: valkey
     command:
       - valkey-server
       - --maxmemory
