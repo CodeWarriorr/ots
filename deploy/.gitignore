@@ -1,5 +1,13 @@
-# Never commit the live env file — it contains CLOUDFLARE_TUNNEL_TOKEN
+# Never commit the live env file or any variant — it contains CLOUDFLARE_TUNNEL_TOKEN.
+# Negation below explicitly allows the committed template.
 .env
+.env.*
+!.env.example
+
+# Editor backup and swap files — could contain secrets if created next to .env
+*~
+*.swp
+*.swo
 
 # Runtime state and any local override files
 data/
