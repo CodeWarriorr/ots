@@ -1,0 +1,7 @@
+# Never commit the live env file — it contains CLOUDFLARE_TUNNEL_TOKEN
+.env
+
+# Runtime state and any local override files
+data/
+docker-compose.override.yml
+*.log
