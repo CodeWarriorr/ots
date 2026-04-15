@@ -203,6 +203,8 @@ This is the core of the plan. Three hardened services, one bridge network, zero 
 # Run from ~/ots-prod/deploy/ on the VPS. `.env` (gitignored) must define
 # CLOUDFLARE_TUNNEL_TOKEN and DATA_DIR.
 
+name: ots
+
 services:
   app:
     image: ghcr.io/luzifer/ots:v1.21.4
@@ -301,6 +303,10 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     logging:
       driver: json-file
       options:
