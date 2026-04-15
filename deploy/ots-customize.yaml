@@ -1,0 +1,15 @@
+# ots app-layer hardening. Mounted read-only into the container at
+# /etc/ots/ots-customize.yaml and loaded via the CUSTOMIZE env var.
+#
+# Upstream defaults ~115 MiB for maxSecretSize — far too generous for a
+# public instance. 256 KiB fits passwords, SSH keys, API tokens, and small
+# files while capping upload-bomb damage.
+
+maxSecretSize: 262144
+
+# Only allow /metrics scraping from the Docker bridge subnet. This is
+# defense-in-depth — cloudflared forwards whatever the tunnel rule says,
+# so this in-app subnet check is the layer that actually blocks public
+# access to /metrics.
+metricsAllowedSubnets:
+  - 172.16.0.0/12
