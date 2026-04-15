@@ -1,0 +1,114 @@
+# ots.blocklab.dev — production compose for the openclaw VPS.
+#
+# Spec: deploy/specs/2026-04-15-ots-deployment-design.md
+#
+# Run from ~/ots-prod/deploy/ on the VPS. `.env` (gitignored) must define
+# CLOUDFLARE_TUNNEL_TOKEN and DATA_DIR.
+
+services:
+  app:
+    image: ghcr.io/luzifer/ots:v1.21.4
+    restart: unless-stopped
+    environment:
+      STORAGE_TYPE: redis
+      REDIS_URL: redis://valkey:6379/0
+      SECRET_EXPIRY: "604800"
+      CUSTOMIZE: /etc/ots/ots-customize.yaml
+      LOG_LEVEL: info
+    volumes:
+      - ./ots-customize.yaml:/etc/ots/ots-customize.yaml:ro
+    depends_on:
+      valkey:
+        condition: service_healthy
+    networks:
+      - app-network
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+          pids: 100
+    healthcheck:
+      # ots image is FROM scratch — no shell, no curl, no wget, no nc.
+      # The Go binary itself is the only executable we can exec, so we
+      # call it with --version (exits 0 without starting a server).
+      test: ["CMD", "/usr/local/bin/ots", "--version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  valkey:
+    image: valkey/valkey:9.0.3-alpine
+    restart: unless-stopped
+    command:
+      - valkey-server
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - "900 1"
+      - --appendonly
+      - "no"
+    volumes:
+      - ${DATA_DIR:?DATA_DIR must be set in .env}:/data
+    networks:
+      - app-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 192M
+          pids: 50
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cloudflared:
+    # Intentionally unpinned. Tunnel client negotiates wire protocol with
+    # the Cloudflare edge and benefits from floating on :latest so protocol
+    # upgrades land automatically. Matches the newsletters-prod pattern.
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN must be set in .env}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - app-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  app-network:
+    driver: bridge
