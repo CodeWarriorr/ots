@@ -227,12 +227,12 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    pids_limit: 100
     deploy:
       resources:
         limits:
           cpus: "0.5"
           memory: 256M
+          pids: 100
     healthcheck:
       # ots image is FROM scratch — no shell, no curl, no wget, no nc.
       # The Go binary itself is the only executable we can exec, so we
@@ -269,12 +269,12 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    pids_limit: 50
     deploy:
       resources:
         limits:
           cpus: "0.25"
           memory: 192M
+          pids: 50
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 30s
@@ -312,10 +312,11 @@ networks:
     driver: bridge
 ```
 
-**Two things the reader should notice:**
+**Three things the reader should notice:**
 
 1. The `app` healthcheck uses `ots --version` because the upstream image is `FROM scratch` — no shell, no curl, no wget. The only thing in the image is the Go binary at `/usr/local/bin/ots`. Running it with `--version` exits 0 and doesn't start a server, which is exactly what a healthcheck needs.
 2. `${DATA_DIR:?...}` and `${CLOUDFLARE_TUNNEL_TOKEN:?...}` use Compose's required-variable syntax — if `.env` is missing or either var is empty, `docker compose up` refuses to start and prints a clear error. Better than silently defaulting to a broken state.
+3. `pids` lives inside `deploy.resources.limits`, NOT as a top-level `pids_limit:` shortcut. Docker Compose v5+ treats the two forms as the same field and errors with `can't set distinct values on 'pids_limit' and 'deploy.resources.limits.pids'` if you use both. Keep everything inside the `deploy.resources.limits` block for consistency.
 
 - [ ] **Step 2: Write a local-only dummy `.env` so compose can validate**
 
