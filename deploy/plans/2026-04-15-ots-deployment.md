@@ -393,7 +393,7 @@ cd /Users/mmach/git/2_AI/ots/deploy
 docker compose up -d app valkey
 ```
 
-Expected: two containers created + started. Output includes `Network deploy_app-network Created`, `Container deploy-valkey-1 Started`, `Container deploy-app-1 Started`.
+Expected: two containers created + started. Output includes `Network ots_app-network Created`, `Container ots-valkey-1 Started`, `Container ots-app-1 Started`.
 
 - [ ] **Step 2: Wait for healthchecks (up to ~45s), then verify**
 
@@ -416,7 +416,7 @@ If `app` is `(unhealthy)`, check logs: `docker compose logs app | tail -30`. Com
 For local curiosity only — this WILL return a 200 with Prometheus metrics:
 ```bash
 cd /Users/mmach/git/2_AI/ots/deploy
-docker run --rm --network deploy_app-network alpine/curl:latest -sf http://app:3000/metrics | head -5
+docker run --rm --network ots_app-network alpine/curl:latest -sf http://app:3000/metrics | head -5
 ```
 
 Expected: `# HELP` lines (Prometheus metrics). Not a failure. Skip if you want and move to Step 4.
@@ -427,7 +427,7 @@ Run:
 ```bash
 cd /Users/mmach/git/2_AI/ots/deploy
 SECRET_BODY='{"secret":"U2FsdGVkX18wJtHr6YpTe8QrvMUUdaLZ+JMBNi1OvOQ="}'
-docker run --rm --network deploy_app-network alpine/curl:latest \
+docker run --rm --network ots_app-network alpine/curl:latest \
   -sf -X POST -H 'content-type: application/json' \
   -d "$SECRET_BODY" http://app:3000/api/create
 ```
@@ -446,12 +446,12 @@ Run (substitute `<uuid>` with the ID from Step 4):
 cd /Users/mmach/git/2_AI/ots/deploy
 UUID='<paste-uuid-here>'
 # First read: should return the secret
-docker run --rm --network deploy_app-network alpine/curl:latest \
+docker run --rm --network ots_app-network alpine/curl:latest \
   -sf http://app:3000/api/get/$UUID
 # Expected: JSON containing the ciphertext we sent
 
 # Second read: should 404
-docker run --rm --network deploy_app-network alpine/curl:latest \
+docker run --rm --network ots_app-network alpine/curl:latest \
   -si http://app:3000/api/get/$UUID | head -1
 # Expected: "HTTP/1.1 404 Not Found"
 ```
@@ -463,7 +463,7 @@ Run:
 cd /Users/mmach/git/2_AI/ots/deploy
 # Generate a 300 KiB string (larger than our 256 KiB cap)
 OVERSIZED=$(python3 -c "print('A'*307200)")
-docker run --rm --network deploy_app-network alpine/curl:latest \
+docker run --rm --network ots_app-network alpine/curl:latest \
   -si -X POST -H 'content-type: application/json' \
   -d "{\"secret\":\"$OVERSIZED\"}" http://app:3000/api/create | head -5
 ```
@@ -911,7 +911,7 @@ Run:
 ssh openclaw 'cd ~/ots-prod/deploy && docker compose up -d'
 ```
 
-Expected: three containers created (`deploy-app-1`, `deploy-valkey-1`, `deploy-cloudflared-1`).
+Expected: three containers created (`ots-app-1`, `ots-valkey-1`, `ots-cloudflared-1`).
 
 - [ ] **Step 5: Wait for healthchecks, then show status**
 
